@@ -1,10 +1,12 @@
+use header::Updateable;
 use macroquad::prelude::*;
 
 mod cypress_forest;
 mod header;
 mod weapons;
-
-use crate::header::*;
+mod camera;
+mod player;
+mod tree;
 
 fn window_conf() -> Conf {
     Conf {
@@ -17,47 +19,21 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let player_img: Texture2D = load_texture("assets/player.png").await.unwrap();
-    player_img.set_filter(FilterMode::Nearest);
-    let mut player_draw_options: DrawTextureParams = DrawTextureParams {
-        dest_size: Some(vec2(PLAYER_WIDTH, PLAYER_HEIGHT)),
-        source: None,
-        rotation: 0.0,
-        flip_x: false,
-        flip_y: false,
-        pivot: None,
-    };
-    let cypress_forest_obj = cypress_forest::CypressForest::init().await;
-    let cypress_axe_obj = weapons::CypressAxe::init().await;
-
-    let y = 0.0;
-    let mut x = 8000.0;
+    let cypress_forest_obj = cypress_forest::CypressForest::new().await;
+    let mut cypress_axe_obj = weapons::CypressAxe::new().await;
+    let mut camera = camera::Camera { x: 0.0, y: 0.0 };
+    let mut player = player::Player::new().await;
 
     loop {
-        if is_key_down(KeyCode::A) {
-            x -= 15.0;
-            player_draw_options.flip_x = false;
-        }
-        if is_key_down(KeyCode::D) {
-            x += 15.0;
-            player_draw_options.flip_x = true;
-        }
-        if x < 1000.0 {
-            x = 1000.0;
-        }
-        if x > 10000.0 - PLAYER_WIDTH - 1225.0 {
-            x = 10000.0 - PLAYER_WIDTH - 1225.0;
-        }
+        player.update();
 
-        cypress_forest_obj.draw(x);
-        draw_texture_ex(
-            &player_img,
-            out_x(x, x, 1),
-            screen_height() - PLAYER_HEIGHT - y - 20.0,
-            WHITE,
-            player_draw_options.clone(),
-        );
-        cypress_axe_obj.draw(player_draw_options.flip_x, x, y);
+        camera.x = player.pos.x - screen_width()/2.0;
+        cypress_axe_obj.pos.x = player.pos.x;
+        cypress_axe_obj.facing_right = player.facing_right;
+
+        camera.draw(&cypress_forest_obj);
+        camera.draw(&player);
+        camera.draw(&cypress_axe_obj);
 
         next_frame().await
     }
